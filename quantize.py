@@ -183,7 +183,7 @@ class QuanConv2d(nn.Conv2d):
         """
         if self._mode == __quan_mode__:
             outz = float(self.outz)
-            return torch.where(x > outz, x, torch.ones(x.size()) * outz)
+            return torch.where(x > outz, x, torch.ones(x.size()).to(x.device) * outz)
         elif self._mode == __float_mode__:
             return F.relu(x, inplace)
         else:
@@ -236,16 +236,16 @@ class QuanConv2d(nn.Conv2d):
         out = torch.add(out, N * inz * wz)
 
         # 参与一次卷积的所有x的和
-        weight = torch.ones(self.quan_weight.size())
-        bias = torch.zeros(self.quan_bias.size())
+        weight = torch.ones(self.quan_weight.size()).to(x.device)
+        bias = torch.zeros(self.quan_bias.size()).to(x.device)
         xsum = F.conv2d(x, weight, bias, self.stride, 0, self.dilation, self.groups)
         xsum = torch.mul(xsum, wz)
         out = torch.sub(out, xsum)
 
         # 参与一次卷积的所有权重的和
-        x = torch.ones(x.size())
-        bias = torch.zeros(self.quan_bias.size())
-        wsum = F.conv2d(x, self.quan_weight, bias, self.stride, 0, self.dilation, self.groups)
+        ones = torch.ones(x.size()).to(x.device)
+        bias = torch.zeros(self.quan_bias.size()).to(x.device)
+        wsum = F.conv2d(ones, self.quan_weight, bias, self.stride, 0, self.dilation, self.groups)
         wsum = torch.mul(wsum, inz)
         out = torch.sub(out, wsum)
 
@@ -290,7 +290,7 @@ class QuanLinear(nn.Linear):
         """
         if self._mode == __quan_mode__:
             outz = float(self.outz)
-            return torch.where(x > outz, x, torch.ones(x.size()) * outz)
+            return torch.where(x > outz, x, torch.ones(x.size()).to(x.device) * outz)
         elif self._mode == __float_mode__:
             return F.relu(x, inplace)
         else:
@@ -337,16 +337,16 @@ class QuanLinear(nn.Linear):
         out = torch.add(out, N * inz * wz)
 
         # 权重置为1
-        weight = torch.ones(self.quan_weight.size())
-        bias = torch.zeros(self.quan_bias.size())
+        weight = torch.ones(self.quan_weight.size()).to(x.device)
+        bias = torch.zeros(self.quan_bias.size()).to(x.device)
         xsum = F.linear(x, weight, bias)
         xsum = torch.mul(xsum, wz)
         out = torch.sub(out, xsum)
 
         # 输入置为1
-        x = torch.ones(x.size())
-        bias = torch.zeros(self.quan_bias.size())
-        wsum = F.linear(x, self.quan_weight, bias)
+        ones = torch.ones(x.size()).to(x.device)
+        bias = torch.zeros(self.quan_bias.size()).to(x.device)
+        wsum = F.linear(ones, self.quan_weight, bias)
         wsum = torch.mul(wsum, inz)
         out = torch.sub(out, wsum)
 

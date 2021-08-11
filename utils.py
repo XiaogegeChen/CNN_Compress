@@ -59,7 +59,30 @@ def quantize_mul(q1: int, q2: int, m: int, q_bits: int, m_bits: int, z1: int, z2
 # 两个量化的1维张量点乘得到新的量化的值,q3=v1 dotproduct v2
 def quantize_dot(t1: torch.Tensor, t2: torch.Tensor, m: int, q_bits: int, m_bits: int, z1: int, z2: int, z3: int) -> int:
     idot = torch.dot(torch.sub(t1, z1), torch.sub(t2, z2))
-    return (int(idot.tolist() * m) >> (q_bits + m_bits)) + z3
+    return (int(float(idot) * m) >> (q_bits + m_bits)) + z3
+
+# 一般的张量转化为COO格式的张量
+def dense_2_coo(dense_tensor: torch.Tensor, invalid_value=0.) -> torch.Tensor:
+    def _get_tensor_item(tensor, idx_1d_tensor):
+        ls = idx_1d_tensor.tolist()
+        temp = tensor.clone()
+        for num in ls:
+            temp = temp[num]
+        return temp
+
+    if invalid_value == 0:
+        idx_t = torch.nonzero(dense_tensor)
+    else:
+        # shift
+        dense_tensor = torch.sub(dense_tensor, invalid_value)
+        idx_t = torch.nonzero(dense_tensor)
+        # shift back
+        dense_tensor = torch.add(dense_tensor, invalid_value)
+    idx = idx_t.t()
+    values = []
+    for it in idx_t:
+        values.append(_get_tensor_item(dense_tensor, it))
+    return torch.sparse_coo_tensor(idx, values, dense_tensor.size()).coalesce()
 
 def _clamp(num, num_min, num_max):
     if num < num_min:
